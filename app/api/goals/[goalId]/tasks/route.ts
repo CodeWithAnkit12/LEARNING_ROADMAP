@@ -1,57 +1,46 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 
+type Params = {
+  goalId: string;
+};
+
 // ✅ GET tasks for a goal
 export async function GET(
   _req: Request,
-  { params }: { params: { goalId: string } }
+  context: { params: Promise<Params> }
 ) {
-  try {
-    const tasks = await prisma.task.findMany({
-      where: { goalId: params.goalId },
-      orderBy: { order: "asc" },
-    });
+  const { goalId } = await context.params;
 
-    return NextResponse.json(tasks);
-  } catch {
-    return NextResponse.json(
-      { error: "Failed to fetch tasks" },
-      { status: 500 }
-    );
-  }
+  const tasks = await prisma.task.findMany({
+    where: { goalId },
+    orderBy: { order: "asc" },
+  });
+
+  return NextResponse.json(tasks);
 }
 
-// ✅ POST create task
+// ✅ CREATE task
 export async function POST(
   req: Request,
-  { params }: { params: { goalId: string } }
+  context: { params: Promise<Params> }
 ) {
-  try {
-    const body = await req.json();
-    const { title, description, difficulty, dueDate } = body;
+  const { goalId } = await context.params;
+  const body = await req.json();
 
-    if (!title) {
-      return NextResponse.json(
-        { error: "Task title required" },
-        { status: 400 }
-      );
-    }
-
-    const task = await prisma.task.create({
-      data: {
-        title,
-        description,
-        difficulty,
-        dueDate: dueDate ? new Date(dueDate) : null,
-        goalId: params.goalId,
-      },
-    });
-
-    return NextResponse.json(task, { status: 201 });
-  } catch {
+  if (!body.title) {
     return NextResponse.json(
-      { error: "Failed to create task" },
-      { status: 500 }
+      { error: "Title is required" },
+      { status: 400 }
     );
   }
+
+  const task = await prisma.task.create({
+    data: {
+      title: body.title,
+      goalId,
+    },
+  });
+
+  return NextResponse.json(task, { status: 201 });
 }
